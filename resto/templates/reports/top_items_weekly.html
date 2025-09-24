@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block content %}
+<h4>Item Terlaris Per Minggu</h4>
+<table class="table table-striped">
+<thead><tr><th>Tahun-Minggu</th><th>Menu</th><th>Qty</th></tr></thead>
+<tbody>
+{% for r in rows %}
+<tr><td>{{ r.yw }}</td><td>{{ r.menu_item__name }}</td><td>{{ r.total_qty }}</td></tr>
+{% empty %}
+<tr><td colspan="3">Tidak ada data</td></tr>
+{% endfor %}
+</tbody>
+</table>
+{% endblock %}

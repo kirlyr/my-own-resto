@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block content %}
+<h4>Order #{{ order.order_no }}</h4>
+<div class="row">
+<div class="col-md-7">
+<div class="list-group mb-3">
+{% for m in menu %}
+<div class="list-group-item d-flex justify-content-between align-items-center">
+<div>
+<div class="fw-bold">{{ m.name }} ({{ m.category.name }})</div>
+<small>Rp {{ m.price }} | Stok: {{ m.stock_qty }}</small>
+</div>
+<form method="post" class="d-flex">{% csrf_token %}
+<input type="hidden" name="menu_item_id" value="{{ m.id }}">
+<input type="number" name="qty" min="1" value="1" class="form-control form-control-sm me-2" style="width:90px">
+<button class="btn btn-primary btn-sm">Tambah</button>
+</form>
+</div>
+{% empty %}
+<div class="alert alert-warning">Tidak ada menu aktif.</div>
+{% endfor %}
+</div>
+</div>
+<div class="col-md-5">
+<div class="card">
+<div class="card-header">Ringkasan</div>
+<div class="card-body">
+<ul class="list-group mb-3">
+{% for i in order.items.all %}
+<li class="list-group-item d-flex justify-content-between">
+<span>{{ i.menu_item.name }} × {{ i.qty }}</span>
+<span>Rp {{ i.line_total }}</span>
+</li>
+{% empty %}
+<li class="list-group-item">Belum ada item.</li>
+{% endfor %}
+</ul>
+<p class="mb-1">Subtotal: <strong>Rp {{ order.subtotal }}</strong></p>
+<p class="mb-1">PPN (10%): <strong>Rp {{ order.tax_amount }}</strong></p>
+<p class="mb-3">Grand Total: <strong>Rp {{ order.grand_total }}</strong></p>
+<a class="btn btn-success w-100" href="/pos/{{ order.order_no }}/checkout/">Checkout</a>
+</div>
+</div>
+</div>
+</div>
+{% endblock %}

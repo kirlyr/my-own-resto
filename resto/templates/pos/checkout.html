@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block content %}
+<h4>Checkout Order #{{ order.order_no }}</h4>
+<div class="card">
+<div class="card-body">
+<form method="post">{% csrf_token %}
+<div class="mb-3">
+<label>Metode Pembayaran</label>
+<select class="form-select" name="payment_method_id" required>
+{% for m in methods %}
+<option value="{{ m.id }}">{{ m.name }}</option>
+{% endfor %}
+</select>
+</div>
+<div class="row">
+<div class="col-md-6 mb-3">
+<label>Ref No (jika kartu)</label>
+<input class="form-control" name="ref_no">
+</div>
+<div class="col-md-6 mb-3">
+<label>Card Last 4 (jika kartu)</label>
+<input class="form-control" name="card_last4" maxlength="4">
+</div>
+</div>
+<div class="alert alert-info">Grand Total: <strong>Rp {{ order.grand_total }}</strong></div>
+<button class="btn btn-primary">Bayar</button>
+</form>
+</div>
+</div>
+{% endblock %}
