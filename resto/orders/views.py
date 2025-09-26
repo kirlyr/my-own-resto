@@ -3,34 +3,62 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.utils import timezone
+from django.contrib import messages
+
 from catalog.models import MenuItem, StockMovement
 from .models import Order, OrderItem
 from payments.models import Payment, PaymentMethod
+
 
 @login_required
 def dashboard(request):
     return render(request, 'dashboard.html')
 
+
 @login_required
 def pos_create_order(request):
+    """
+    Buat order baru lalu arahkan ke halaman tambah item.
+    Ini juga akan kita pakai sebagai 'cart_view' publik.
+    """
     order_no = uuid.uuid4().hex[:10].upper()
     order = Order.objects.create(user=request.user, order_no=order_no)
-    return redirect('pos_add_item', order_no=order_no)
+    return redirect('pos_add_item', order_no=order.order_no)
+
 
 @login_required
 def pos_add_item(request, order_no):
     order = get_object_or_404(Order, order_no=order_no)
-    menu = MenuItem.objects.filter(is_active=True).order_by('category__name','name')
+    menu = MenuItem.objects.filter(is_active=True).order_by('category__name', 'name')
 
     if request.method == 'POST':
         item_id = request.POST.get('menu_item_id')
-        qty = int(request.POST.get('qty', 1))
+
+        # qty aman (default 1, minimal 1)
+        try:
+            qty = int(request.POST.get('qty', 1))
+        except ValueError:
+            qty = 1
+        if qty < 1:
+            qty = 1
+
         item = get_object_or_404(MenuItem, pk=item_id)
+
+        # VALIDASI STOK
+        if item.stock_qty <= 0:
+            messages.error(request, f"Stok {item.name} habis.")
+            return redirect('pos_add_item', order_no=order_no)
+        if qty > item.stock_qty:
+            messages.warning(request, f"Qty melebihi stok. Maksimum {item.stock_qty}.")
+            qty = item.stock_qty
+
         OrderItem.objects.create(order=order, menu_item=item, qty=qty, price=item.price)
         order.recalc_totals()
+        messages.success(request, f"Tambah {item.name} × {qty}")
         return redirect('pos_add_item', order_no=order_no)
 
     return render(request, 'pos/add_item.html', {'order': order, 'menu': menu})
+
 
 @login_required
 def pos_checkout(request, order_no):
@@ -39,20 +67,23 @@ def pos_checkout(request, order_no):
 
     if request.method == 'POST':
         method_id = request.POST.get('payment_method_id')
-        ref_no = request.POST.get('ref_no','')
-        card_last4 = request.POST.get('card_last4','')
+        ref_no = request.POST.get('ref_no', '')
+        card_last4 = request.POST.get('card_last4', '')
 
         with transaction.atomic():
             # Finalisasi order
             order.placed_at = timezone.now()
             order.status = Order.STATUS_PAID
-            order.save(update_fields=['placed_at','status'])
+            order.save(update_fields=['placed_at', 'status'])
 
             # Buat payment
             pm = get_object_or_404(PaymentMethod, pk=method_id)
             Payment.objects.create(
-                order=order, payment_method=pm, amount_paid=order.grand_total,
-                ref_no=ref_no, card_last4=card_last4
+                order=order,
+                payment_method=pm,
+                amount_paid=order.grand_total,
+                ref_no=ref_no,
+                card_last4=card_last4
             )
 
             # Mutasi stok OUT per item
@@ -60,9 +91,33 @@ def pos_checkout(request, order_no):
                 oi.menu_item.stock_qty -= oi.qty
                 oi.menu_item.save(update_fields=['stock_qty'])
                 StockMovement.objects.create(
-                    menu_item=oi.menu_item, user=request.user, move_type=StockMovement.MOVE_OUT,
-                    qty=oi.qty, note=f'Sale {order.order_no}'
+                    menu_item=oi.menu_item,
+                    user=request.user,
+                    move_type=StockMovement.MOVE_OUT,
+                    qty=oi.qty,
+                    note=f'Sale {order.order_no}'
                 )
-        return redirect('dashboard')
+
+        return redirect('order_receipt', order_no=order_no)
 
     return render(request, 'pos/checkout.html', {'order': order, 'methods': methods})
+
+
+@login_required
+def order_receipt(request, order_no):
+    """
+    Halaman struk untuk dicetak. Hanya staff/kasir yang boleh.
+    """
+    if not request.user.is_staff:
+        return redirect('dashboard')
+
+    order = get_object_or_404(
+        Order.objects.select_related('customer', 'user').prefetch_related('items__menu_item'),
+        order_no=order_no
+    )
+    shop = {
+        "name": "Dapur Bunda Bahagia",
+        "address": "Jl. Contoh No. 123, Jakarta",
+        "phone": "0812-0000-0000",
+    }
+    return render(request, "orders/receipt.html", {"order": order, "shop": shop})

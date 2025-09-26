@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block content %}
+<h4>Restock: {{ item.name }}</h4>
+<div class="card">
+  <div class="card-body">
+    <form method="post">{% csrf_token %}
+      <div class="mb-3">
+        <label>Qty Tambah</label>
+        <input type="number" name="qty" class="form-control" min="1" value="1" required>
+        <small class="text-muted">Stok saat ini: {{ item.stock_qty }}</small>
+      </div>
+      <div class="d-flex gap-2">
+        <button class="btn btn-primary">Simpan</button>
+        <a class="btn btn-secondary" href="{% url 'menu_list' %}">Batal</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

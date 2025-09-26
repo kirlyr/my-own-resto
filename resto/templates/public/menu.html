@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% block content %}
+<h3 class="mb-3">Menu Tersedia</h3>
+
+<!-- Tombol cepat menuju keranjang -->
+<div class="text-end mb-2">
+  <a class="btn btn-outline-primary" href="{% url 'cart_view' %}">Lihat Keranjang</a>
+</div>
+
+<!-- FILTER & SEARCH -->
+<form class="row g-2 mb-3" method="get">
+  <div class="col-md-4">
+    <input class="form-control" type="text" name="q" placeholder="Cari menu/kategori..." value="{{ q }}">
+  </div>
+  <div class="col-md-3">
+    <select class="form-select" name="cat">
+      <option value="">Semua Kategori</option>
+      {% for c in categories %}
+        <option value="{{ c.id }}" {% if cat|default:'' == c.id|stringformat:'s' %}selected{% endif %}>
+          {{ c.name }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <button class="btn btn-outline-secondary">Terapkan</button>
+  </div>
+</form>
+
+<!-- GRID MENU -->
+<div class="row g-3">
+  {% for m in items %}
+    <div class="col-md-3">
+      <div class="card h-100">
+        {% if m.image %}
+          <img src="{{ m.image.url }}" class="card-img-top" alt="{{ m.name }}" style="height:160px;object-fit:cover">
+        {% endif %}
+        <div class="card-body d-flex flex-column">
+          <h6 class="card-title mb-1">{{ m.name }}</h6>
+          <small class="text-muted">{{ m.category.name }}</small>
+          {% if m.description %}
+            <p class="mt-2 small text-secondary">{{ m.description|truncatechars:100 }}</p>
+          {% endif %}
+
+          <!-- Bagian bawah kartu: harga, stok, & tombol tambah ke keranjang -->
+          <div class="mt-auto">
+            <div class="fw-bold">Rp {{ m.price }}</div>
+            <small class="text-muted">Stok: {{ m.stock_qty }}</small>
+
+            <!-- FORM TAMBAH KE KERANJANG -->
+            <form method="post" action="{% url 'cart_add' m.id %}" class="d-flex gap-2 mt-2">
+              {% csrf_token %}
+              <input type="number"
+                     name="qty"
+                     min="1"
+                     max="{{ m.stock_qty }}"
+                     value="1"
+                     class="form-control form-control-sm"
+                     style="width:80px"
+                     {% if m.stock_qty == 0 %}disabled{% endif %}>
+              <button class="btn btn-sm btn-primary" {% if m.stock_qty == 0 %}disabled{% endif %}>
+                Tambah
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% empty %}
+    <div class="col-12">
+      <div class="alert alert-warning">Tidak ada menu yang tersedia saat ini.</div>
+    </div>
+  {% endfor %}
+</div>
+
+{% if items.paginator.num_pages > 1 %}
+<nav class="mt-3">
+  <ul class="pagination">
+    {% if items.has_previous %}
+      <li class="page-item">
+        <a class="page-link" href="?q={{ q }}&cat={{ cat }}&page={{ items.previous_page_number }}">Prev</a>
+      </li>
+    {% endif %}
+    <li class="page-item disabled">
+      <span class="page-link">Page {{ items.number }} / {{ items.paginator.num_pages }}</span>
+    </li>
+    {% if items.has_next %}
+      <li class="page-item">
+        <a class="page-link" href="?q={{ q }}&cat={{ cat }}&page={{ items.next_page_number }}">Next</a>
+      </li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
+{% endblock %}

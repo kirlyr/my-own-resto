@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block content %}
+<h3 class="mb-3">Keranjang</h3>
+
+{% if rows %}
+<table class="table align-middle">
+  <thead><tr><th>Item</th><th style="width:120px">Qty</th><th class="text-end">Subtotal</th><th></th></tr></thead>
+  <tbody>
+    {% for r in rows %}
+      <tr>
+        <td>{{ r.item.name }} <small class="text-muted">({{ r.item.category.name }})</small></td>
+        <td>
+          <form method="post" action="{% url 'cart_update' r.item.id %}" class="d-flex gap-2">{% csrf_token %}
+            <input type="number" name="qty" min="1" max="{{ r.item.stock_qty }}" value="{{ r.qty }}"
+                   class="form-control form-control-sm" style="width:80px">
+            <button class="btn btn-sm btn-outline-secondary">Ubah</button>
+          </form>
+        </td>
+        <td class="text-end">Rp {{ r.line }}</td>
+        <td class="text-end">
+          <form method="post" action="{% url 'cart_remove' r.item.id %}">{% csrf_token %}
+            <button class="btn btn-sm btn-danger">Hapus</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="card">
+  <div class="card-body">
+    <p class="mb-1">Subtotal: <strong>Rp {{ subtotal }}</strong></p>
+    <p class="mb-1">PPN (10%): <strong>Rp {{ tax }}</strong></p>
+    <p class="mb-3">Grand Total: <strong>Rp {{ grand }}</strong></p>
+
+    <a class="btn btn-outline-secondary" href="{% url 'public_menu' %}">Tambah Menu Lagi</a>
+    <a class="btn btn-success float-end" href="{% url 'cart_checkout' %}">Checkout</a>
+  </div>
+</div>
+{% else %}
+<div class="alert alert-info">Keranjang kosong.</div>
+<a class="btn btn-primary" href="{% url 'public_menu' %}">Lihat Menu</a>
+{% endif %}
+{% endblock %}

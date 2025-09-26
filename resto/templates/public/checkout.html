@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block content %}
+<h3 class="mb-3">Checkout</h3>
+<div class="alert alert-info">
+  Lengkapi data pelanggan (opsional). Checkout memerlukan user staf/kasir yang login.
+</div>
+<form method="post" class="card card-body">{% csrf_token %}
+  <div class="row">
+    <div class="col-md-6 mb-3">
+      <label>Nama Pelanggan</label>
+      <input name="name" class="form-control" placeholder="Nama (opsional)">
+    </div>
+    <div class="col-md-6 mb-3">
+      <label>No. Telepon</label>
+      <input name="phone" class="form-control" placeholder="0812xxxxxxx">
+    </div>
+  </div>
+  <button class="btn btn-success">Buat Order & Lanjut ke Pembayaran</button>
+  <a class="btn btn-secondary" href="{% url 'cart_view' %}">Kembali</a>
+</form>
+{% endblock %}

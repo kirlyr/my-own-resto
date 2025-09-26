@@ -10,7 +10,15 @@
     <input type="text" class="form-control" name="q" placeholder="Cari..." value="{{ q }}">
   </div>
   <div class="col-auto">
-    <button class="btn btn-outline-secondary">Cari</button>
+    <select class="form-select" name="sort">
+      <option value="name" {% if sort == "name" %}selected{% endif %}>Sort: Nama ↑</option>
+      <option value="-name" {% if sort == "-name" %}selected{% endif %}>Sort: Nama ↓</option>
+      <option value="code" {% if sort == "code" %}selected{% endif %}>Sort: Kode ↑</option>
+      <option value="-code" {% if sort == "-code" %}selected{% endif %}>Sort: Kode ↓</option>
+    </select>
+  </div>
+  <div class="col-auto">
+    <button class="btn btn-outline-secondary">Terapkan</button>
   </div>
 </form>
 
@@ -31,4 +39,18 @@
     {% endfor %}
   </tbody>
 </table>
+
+{% if categories.paginator.num_pages > 1 %}
+<nav>
+  <ul class="pagination">
+    {% if categories.has_previous %}
+      <li class="page-item"><a class="page-link" href="?q={{ q }}&sort={{ sort }}&page={{ categories.previous_page_number }}">Prev</a></li>
+    {% endif %}
+    <li class="page-item disabled"><span class="page-link">Page {{ categories.number }} / {{ categories.paginator.num_pages }}</span></li>
+    {% if categories.has_next %}
+      <li class="page-item"><a class="page-link" href="?q={{ q }}&sort={{ sort }}&page={{ categories.next_page_number }}">Next</a></li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
 {% endblock %}

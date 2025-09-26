@@ -44,3 +44,20 @@
 </div>
 </div>
 {% endblock %}
+
+{% for m in menu %}
+  <div class="list-group-item d-flex justify-content-between align-items-center">
+    <div>
+      <div class="fw-bold">{{ m.name }} ({{ m.category.name }})</div>
+      <small>Rp {{ m.price }} | Stok: {{ m.stock_qty }}</small>
+    </div>
+    <form method="post" class="d-flex">{% csrf_token %}
+      <input type="hidden" name="menu_item_id" value="{{ m.id }}">
+      <input type="number" name="qty" min="1" max="{{ m.stock_qty }}" value="1"
+             class="form-control form-control-sm me-2" style="width:90px" {% if m.stock_qty == 0 %}disabled{% endif %}>
+      <button class="btn btn-primary btn-sm" {% if m.stock_qty == 0 %}disabled{% endif %}>
+        Tambah
+      </button>
+    </form>
+  </div>
+{% endfor %}

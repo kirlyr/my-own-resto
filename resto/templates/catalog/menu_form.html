@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block content %}
 <h4 class="mb-3">{{ title }}</h4>
-<form method="post" class="card card-body">{% csrf_token %}
+<form method="post" enctype="multipart/form-data" class="card card-body">{% csrf_token %}
   {{ form.as_p }}
   <div class="d-flex gap-2">
     <button class="btn btn-primary">Simpan</button>

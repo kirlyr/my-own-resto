@@ -1,0 +1,87 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Struk {{ order.order_no }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    /* gaya sederhana agar ramah printer */
+    body { font-family: Arial, sans-serif; margin: 16px; }
+    .receipt { max-width: 380px; margin: 0 auto; }
+    .center { text-align: center; }
+    .small { font-size: 12px; color: #555; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 6px 0; font-size: 14px; }
+    .border-top { border-top: 1px dashed #999; margin: 8px 0; }
+    .total-line td { padding-top: 6px; }
+    .btn-print { display: inline-block; padding: 8px 12px; border: 1px solid #333; border-radius: 6px; text-decoration: none; color: #333; margin-bottom: 12px;}
+    @media print {
+      .no-print { display: none; }
+      body { margin: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="receipt">
+    <div class="no-print" style="text-align:right">
+      <a class="btn-print" href="#" onclick="window.print();return false;">Cetak</a>
+    </div>
+
+    <div class="center">
+      <h3 style="margin:0">{{ shop.name }}</h3>
+      <div class="small">{{ shop.address }}</div>
+      <div class="small">{{ shop.phone }}</div>
+    </div>
+
+    <div class="border-top"></div>
+
+    <table>
+      <tr><td>No. Order</td><td style="text-align:right">{{ order.order_no }}</td></tr>
+      <tr><td>Tanggal</td><td style="text-align:right">{{ order.placed_at|date:"d M Y, H:i" }}</td></tr>
+      <tr><td>Kasir</td><td style="text-align:right">{{ order.user.username }}</td></tr>
+      {% if order.customer %}
+        <tr><td>Pelanggan</td><td style="text-align:right">{{ order.customer.name }}</td></tr>
+      {% endif %}
+    </table>
+
+    <div class="border-top"></div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="text-align:left">Item</th>
+          <th style="text-align:center">Qty</th>
+          <th style="text-align:right">Harga</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for i in order.items.all %}
+          <tr>
+            <td>{{ i.menu_item.name }}</td>
+            <td style="text-align:center">{{ i.qty }}</td>
+            <td style="text-align:right">Rp {{ i.line_total }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="border-top"></div>
+
+    <table>
+      <tr class="total-line"><td>Subtotal</td><td style="text-align:right">Rp {{ order.subtotal }}</td></tr>
+      <tr class="total-line"><td>PPN (10%)</td><td style="text-align:right">Rp {{ order.tax_amount }}</td></tr>
+      {% if order.discount_amount and order.discount_amount|floatformat != "0" %}
+      <tr class="total-line"><td>Diskon</td><td style="text-align:right">- Rp {{ order.discount_amount }}</td></tr>
+      {% endif %}
+      <tr class="total-line" style="font-weight:bold"><td>Grand Total</td><td style="text-align:right">Rp {{ order.grand_total }}</td></tr>
+      {% if order.payment %}
+      <tr><td>Metode</td><td style="text-align:right">{{ order.payment.payment_method.name }}</td></tr>
+      {% endif %}
+    </table>
+
+    <div class="border-top"></div>
+
+    <p class="center small">Terima kasih telah berbelanja di {{ shop.name }} 🙏</p>
+  </div>
+</body>
+</html>
