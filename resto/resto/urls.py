@@ -7,22 +7,25 @@ from django.conf.urls.static import static
 from reports.views import sales_monthly, top_items_weekly
 
 urlpatterns = [
-path('admin/', admin.site.urls),
-path('login/', auth_views.LoginView.as_view(template_name='auth/login.html'), name='login'),
-path('logout/', auth_views.LogoutView.as_view(), name='logout'),
-path('', dashboard, name='dashboard'),
-# mount catalog CRUD
-path('', include('catalog.urls')),
+    path('admin/', admin.site.urls),
+    path('login/', auth_views.LoginView.as_view(template_name='auth/login.html'), name='login'),
+    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
+    path('', dashboard, name='dashboard'),
 
-path('', dashboard, name='dashboard'),
-path('pos/create/', pos_create_order, name='pos_create_order'),
-path('pos/<str:order_no>/add-item/', pos_add_item, name='pos_add_item'),
-path('pos/<str:order_no>/checkout/', pos_checkout, name='pos_checkout'),
+    # mount catalog CRUD
+    path('', include('catalog.urls')),
 
-path('reports/monthly/', sales_monthly, name='sales_monthly'),
-path('reports/top-weekly/', top_items_weekly, name='top_items_weekly'),
+    # POS
+    path('pos/create/', pos_create_order, name='pos_create_order'),
+    path('pos/<str:order_no>/add-item/', pos_add_item, name='pos_add_item'),
+    path('pos/<str:order_no>/checkout/', pos_checkout, name='pos_checkout'),
 
-path('', include('orders.urls')),
+    # Reports
+    path('reports/monthly/', sales_monthly, name='sales_monthly'),
+    path('reports/top-weekly/', top_items_weekly, name='top_items_weekly'),
+
+    # Orders app
+    path('', include('orders.urls')),
 ]
 
 if settings.DEBUG:

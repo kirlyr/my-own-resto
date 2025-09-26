@@ -9,6 +9,7 @@ from catalog.models import MenuItem, StockMovement
 from .models import Order, OrderItem
 from payments.models import Payment, PaymentMethod
 
+from django.apps import apps
 
 @login_required
 def dashboard(request):
@@ -121,3 +122,83 @@ def order_receipt(request, order_no):
         "phone": "0812-0000-0000",
     }
     return render(request, "orders/receipt.html", {"order": order, "shop": shop})
+
+# ================== Ambil model Menu tanpa circular import ==================
+def get_menu_model():
+    """
+    Ambil model menu dari app 'catalog' secara dinamis.
+    Kalau nama model kamu bukan 'Menu', tambahkan alternatifnya di list.
+    """
+    for name in ["Menu", "MenuItem", "Product", "Item", "Food"]:
+        try:
+            return apps.get_model("catalog", name)
+        except LookupError:
+            continue
+    raise LookupError(
+        "Model menu tidak ditemukan di app 'catalog'. "
+        "Pastikan ada model bernama salah satu dari: Menu, MenuItem, Product, Item, Food"
+    )
+
+# ================== Util keranjang berbasis session ==================
+def _get_cart(request):
+    return request.session.get("cart", {})
+
+def _save_cart(request, cart):
+    request.session["cart"] = cart
+    request.session.modified = True
+
+# ================== Views Keranjang ==================
+def cart_add(request, menu_id):
+    MenuModel = get_menu_model()
+    # validasi item ada
+    get_object_or_404(MenuModel, id=menu_id)
+
+    cart = _get_cart(request)
+    key = str(menu_id)
+    cart[key] = cart.get(key, 0) + 1
+    _save_cart(request, cart)
+
+    # ganti 'public_menu' jika nama url menu publik kamu berbeda
+    return redirect("public_menu")
+
+def cart_remove(request, menu_id):
+    cart = _get_cart(request)
+    key = str(menu_id)
+    if key in cart:
+        cart[key] -= 1
+        if cart[key] <= 0:
+            cart.pop(key)
+        _save_cart(request, cart)
+    return redirect("cart_view")
+
+def cart_clear(request):
+    _save_cart(request, {})
+    return redirect("cart_view")
+
+def cart_view(request):
+    MenuModel = get_menu_model()
+    cart = _get_cart(request)
+
+    ids = [int(i) for i in cart.keys()]
+    items, total = [], 0
+
+    if ids:
+        menus = {m.id: m for m in MenuModel.objects.filter(id__in=ids)}
+        for sid, qty in cart.items():
+            mid = int(sid)
+            m = menus.get(mid)
+            if not m:
+                continue
+            price = getattr(m, "price", 0) or 0
+            name = getattr(m, "name", str(m))
+            subtotal = price * qty
+            total += subtotal
+            items.append({
+                "id": mid,
+                "name": name,
+                "price": price,
+                "qty": qty,
+                "subtotal": subtotal,
+            })
+
+    return render(request, "public/cart.html", {"items": items, "total": total})
