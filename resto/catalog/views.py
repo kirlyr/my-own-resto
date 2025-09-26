@@ -6,8 +6,15 @@ from django.shortcuts import get_object_or_404, redirect, render
 from .models import Category, MenuItem, StockMovement
 from .forms import CategoryForm, MenuItemForm
 from django.db.models import Q
+from django.urls import reverse
+from django.shortcuts import redirect
+from decimal import Decimal
+from orders.models import Order, OrderItem, Customer
+from payments.models import PaymentMethod
 
 staff_required = user_passes_test(lambda u: u.is_staff)
+
+CART_KEY = 'cart'  # session key
 
 # ---------- CATEGORY ----------
 @login_required
@@ -170,3 +177,126 @@ def public_menu(request):
         "q": q,
         "cat": cat,
     })
+
+# ========= CART (Session) =========
+CART_KEY = 'cart'  # nama key di session
+
+def _get_cart(session):
+    return session.get(CART_KEY, {})
+
+def _save_cart(session, cart):
+    session[CART_KEY] = cart
+    session.modified = True
+
+def cart_add(request, pk):
+    """Tambah 1 item (atau qty dari form) ke keranjang session."""
+    try:
+        qty = int(request.POST.get('qty', 1))
+    except ValueError:
+        qty = 1
+    if qty < 1:
+        qty = 1
+
+    item = get_object_or_404(MenuItem, pk=pk, is_active=True, stock_qty__gt=0)
+    cart = _get_cart(request.session)
+    current = int(cart.get(str(pk), 0))
+    qty = min(qty, item.stock_qty)  # clamp ke stok
+
+    cart[str(pk)] = current + qty
+    _save_cart(request.session, cart)
+    messages.success(request, f"Tambahkan {item.name} × {qty} ke keranjang.")
+
+    # Kembali ke halaman sebelumnya, fallback ke public_menu
+    return redirect(request.META.get('HTTP_REFERER') or reverse('public_menu'))
+
+def cart_view(request):
+    """Tampilkan isi keranjang + subtotal, pajak, grand total."""
+    cart = _get_cart(request.session)
+    if not cart:
+        return render(request, 'public/cart.html', {
+            'rows': [],
+            'subtotal': Decimal('0.00'),
+            'tax': Decimal('0.00'),
+            'grand': Decimal('0.00'),
+        })
+
+    ids = [int(k) for k in cart.keys()]
+    items = MenuItem.objects.filter(id__in=ids).select_related('category')
+
+    rows = []
+    subtotal = Decimal('0.00')
+    for m in items:
+        q = int(cart[str(m.id)])
+        line = (m.price * q)
+        rows.append({'item': m, 'qty': q, 'line': line})
+        subtotal += line
+
+    tax = (subtotal * Decimal('0.10')).quantize(Decimal('0.01'))
+    grand = (subtotal + tax).quantize(Decimal('0.01'))
+
+    return render(request, 'public/cart.html', {
+        'rows': rows, 'subtotal': subtotal, 'tax': tax, 'grand': grand
+    })
+
+def cart_update(request, pk):
+    """Ubah qty suatu item di keranjang."""
+    try:
+        qty = int(request.POST.get('qty', 1))
+    except ValueError:
+        qty = 1
+    if qty < 1:
+        qty = 1
+    item = get_object_or_404(MenuItem, pk=pk, is_active=True)
+    qty = min(qty, item.stock_qty)
+
+    cart = _get_cart(request.session)
+    if str(pk) in cart:
+        cart[str(pk)] = qty
+        _save_cart(request.session, cart)
+        messages.success(request, "Qty diperbarui.")
+    return redirect('cart_view')
+
+def cart_remove(request, pk):
+    """Hapus item dari keranjang."""
+    cart = _get_cart(request.session)
+    if str(pk) in cart:
+        del cart[str(pk)]
+        _save_cart(request.session, cart)
+        messages.success(request, "Item dihapus dari keranjang.")
+    return redirect('cart_view')
+
+from django.contrib.auth.decorators import login_required
+import uuid
+
+@login_required
+def cart_checkout(request):
+    """
+    Buat Order dari isi keranjang (butuh login staff/kasir).
+    Redirect ke halaman checkout POS untuk proses pembayaran.
+    """
+    cart = _get_cart(request.session)
+    if not cart:
+        messages.error(request, "Keranjang kosong.")
+        return redirect('public_menu')
+
+    if request.method == 'POST':
+        name = (request.POST.get('name') or '').strip() or 'Guest'
+        phone = (request.POST.get('phone') or '').strip()
+        customer, _ = Customer.objects.get_or_create(name=name, phone=phone)
+
+        order_no = uuid.uuid4().hex[:10].upper()
+        o = Order.objects.create(user=request.user, customer=customer, order_no=order_no)
+
+        items = MenuItem.objects.filter(id__in=[int(k) for k in cart.keys()])
+        for m in items:
+            q = min(int(cart[str(m.id)]), m.stock_qty)
+            OrderItem.objects.create(order=o, menu_item=m, qty=q, price=m.price)
+
+        o.recalc_totals()
+        _save_cart(request.session, {})  # kosongkan keranjang
+        messages.success(request, f"Order {o.order_no} dibuat. Lanjut ke pembayaran.")
+        return redirect('pos_checkout', order_no=o.order_no)
+
+    # GET → tampilkan form singkat data pelanggan
+    return render(request, 'public/checkout.html')
+# ========= END CART =========

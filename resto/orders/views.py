@@ -5,11 +5,14 @@ from django.db import transaction
 from django.utils import timezone
 from django.contrib import messages
 
-from catalog.models import MenuItem, StockMovement
+from catalog.models import MenuItem, StockMovement, Category
 from .models import Order, OrderItem
 from payments.models import Payment, PaymentMethod
 
 from django.apps import apps
+
+from django.db.models import Q
+from django.urls import reverse
 
 @login_required
 def dashboard(request):
@@ -30,12 +33,22 @@ def pos_create_order(request):
 @login_required
 def pos_add_item(request, order_no):
     order = get_object_or_404(Order, order_no=order_no)
-    menu = MenuItem.objects.filter(is_active=True).order_by('category__name', 'name')
+
+    # FILTER & SEARCH
+    q = request.GET.get('q', '').strip()
+    cat = request.GET.get('cat', '').strip()
+
+    menu = MenuItem.objects.filter(is_active=True)
+    if cat:
+        menu = menu.filter(category_id=cat)
+    if q:
+        menu = menu.filter(Q(name__icontains=q) | Q(category__name__icontains=q))
+    menu = menu.select_related('category').order_by('category__name', 'name')
+
+    categories = Category.objects.order_by('name')
 
     if request.method == 'POST':
         item_id = request.POST.get('menu_item_id')
-
-        # qty aman (default 1, minimal 1)
         try:
             qty = int(request.POST.get('qty', 1))
         except ValueError:
@@ -56,9 +69,13 @@ def pos_add_item(request, order_no):
         OrderItem.objects.create(order=order, menu_item=item, qty=qty, price=item.price)
         order.recalc_totals()
         messages.success(request, f"Tambah {item.name} × {qty}")
-        return redirect('pos_add_item', order_no=order_no)
+        return redirect(f"{reverse('pos_add_item', args=[order_no])}?q={q}&cat={cat}")
 
-    return render(request, 'pos/add_item.html', {'order': order, 'menu': menu})
+    return render(
+        request,
+        'pos/add_item.html',
+        {'order': order, 'menu': menu, 'categories': categories, 'q': q, 'cat': cat}
+    )
 
 
 @login_required

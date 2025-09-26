@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from catalog.models import MenuItem
+from decimal import Decimal
 
 class Customer(models.Model):
     name = models.CharField(max_length=120)
@@ -39,13 +40,16 @@ class Order(models.Model):
         return self.order_no
 
     def recalc_totals(self):
-        agg = self.items.aggregate(
-            subtotal=models.Sum(models.F('qty') * models.F('price'))
-        )
-        self.subtotal = agg['subtotal'] or 0
-        self.tax_amount = self.subtotal * 0.10
-        self.grand_total = self.subtotal + self.tax_amount - self.discount_amount
-        self.save(update_fields=['subtotal','tax_amount','grand_total'])
+        # Ambil dari line_total (Decimal) agar aman
+        agg = self.items.aggregate(subtotal=models.Sum('line_total'))
+        self.subtotal = agg['subtotal'] or Decimal('0.00')
+        # pajak 10% pakai Decimal, bukan float
+        self.tax_amount = (self.subtotal * Decimal('0.10')).quantize(Decimal('0.01'))
+        # pastikan discount_amount sudah Decimal
+        if self.discount_amount is None:
+            self.discount_amount = Decimal('0.00')
+        self.grand_total = (self.subtotal + self.tax_amount - self.discount_amount).quantize(Decimal('0.01'))
+        self.save(update_fields=['subtotal', 'tax_amount', 'grand_total'])
 
 class OrderItem(models.Model):
     order = models.ForeignKey('orders.Order', on_delete=models.CASCADE, related_name='items')

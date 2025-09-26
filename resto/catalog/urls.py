@@ -16,4 +16,11 @@ urlpatterns = [
 
     # PUBLIC menu for customers
     path("public/menu/", views.public_menu, name="public_menu"),
+
+    # CART (public / session)
+    path("public/cart/", views.cart_view, name="cart_view"),
+    path("public/cart/add/<int:pk>/", views.cart_add, name="cart_add"),
+    path("public/cart/update/<int:pk>/", views.cart_update, name="cart_update"),
+    path("public/cart/remove/<int:pk>/", views.cart_remove, name="cart_remove"),
+    path("public/cart/checkout/", views.cart_checkout, name="cart_checkout"),
 ]
