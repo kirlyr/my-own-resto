@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4>Kategori</h4>
+  <a class="btn btn-primary" href="{% url 'category_create' %}">+ Tambah</a>
+</div>
+
+<form class="row g-2 mb-3" method="get">
+  <div class="col-auto">
+    <input type="text" class="form-control" name="q" placeholder="Cari..." value="{{ q }}">
+  </div>
+  <div class="col-auto">
+    <button class="btn btn-outline-secondary">Cari</button>
+  </div>
+</form>
+
+<table class="table table-striped">
+  <thead><tr><th>Kode</th><th>Nama</th><th width="160">Aksi</th></tr></thead>
+  <tbody>
+    {% for c in categories %}
+      <tr>
+        <td>{{ c.code }}</td>
+        <td>{{ c.name }}</td>
+        <td>
+          <a class="btn btn-sm btn-warning" href="{% url 'category_update' c.id %}">Edit</a>
+          <a class="btn btn-sm btn-danger" href="{% url 'category_delete' c.id %}">Hapus</a>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="3">Belum ada kategori.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
