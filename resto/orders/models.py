@@ -27,7 +27,8 @@ class Order(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)  # kasir yang input
     customer = models.ForeignKey('orders.Customer', on_delete=models.SET_NULL, null=True, blank=True)
     order_no = models.CharField(max_length=30, unique=True)
-    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default=STATUS_PLACED)
+    # status = models.CharField(max_length=12, choices=STATUS_CHOICES, default=STATUS_PLACED)
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default=STATUS_DRAFT)
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     tax_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)

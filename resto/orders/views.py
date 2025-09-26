@@ -4,13 +4,13 @@ from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.utils import timezone
 from django.contrib import messages
+from django.core.exceptions import ValidationError
 
 from catalog.models import MenuItem, StockMovement, Category
 from .models import Order, OrderItem
 from payments.models import Payment, PaymentMethod
 
 from django.apps import apps
-
 from django.db.models import Q
 from django.urls import reverse
 
@@ -23,7 +23,6 @@ def dashboard(request):
 def pos_create_order(request):
     """
     Buat order baru lalu arahkan ke halaman tambah item.
-    Ini juga akan kita pakai sebagai 'cart_view' publik.
     """
     order_no = uuid.uuid4().hex[:10].upper()
     order = Order.objects.create(user=request.user, order_no=order_no)
@@ -58,17 +57,20 @@ def pos_add_item(request, order_no):
 
         item = get_object_or_404(MenuItem, pk=item_id)
 
-        # VALIDASI STOK
+        # ==== VALIDASI STOK (nonaktifkan blok ini jika mau bebas tambah tanpa stok)
         if item.stock_qty <= 0:
             messages.error(request, f"Stok {item.name} habis.")
             return redirect('pos_add_item', order_no=order_no)
         if qty > item.stock_qty:
             messages.warning(request, f"Qty melebihi stok. Maksimum {item.stock_qty}.")
             qty = item.stock_qty
+        # ==== akhir validasi stok
 
+        # Tambah / merge item (kalau mau merge qty, pakai get_or_create; di sini create baris baru)
         OrderItem.objects.create(order=order, menu_item=item, qty=qty, price=item.price)
         order.recalc_totals()
         messages.success(request, f"Tambah {item.name} × {qty}")
+        # Kembalikan ke halaman yang sama + pertahankan filter
         return redirect(f"{reverse('pos_add_item', args=[order_no])}?q={q}&cat={cat}")
 
     return render(
@@ -78,44 +80,74 @@ def pos_add_item(request, order_no):
     )
 
 
+def _ensure_payment_methods():
+    """
+    Buat metode pembayaran default jika tabel masih kosong.
+    """
+    if not PaymentMethod.objects.exists():
+        PaymentMethod.objects.bulk_create([
+            PaymentMethod(code="CASH", name="Cash"),
+            PaymentMethod(code="CARD", name="Kartu"),
+            PaymentMethod(code="QRIS", name="QRIS"),
+        ])
+
+
 @login_required
 def pos_checkout(request, order_no):
     order = get_object_or_404(Order, order_no=order_no)
+
+    # Pastikan pilihan metode selalu ada
+    _ensure_payment_methods()
     methods = PaymentMethod.objects.all()
 
     if request.method == 'POST':
         method_id = request.POST.get('payment_method_id')
-        ref_no = request.POST.get('ref_no', '')
-        card_last4 = request.POST.get('card_last4', '')
+        ref_no = request.POST.get('ref_no', '').strip()
+        card_last4 = request.POST.get('card_last4', '').strip()
 
-        with transaction.atomic():
-            # Finalisasi order
-            order.placed_at = timezone.now()
-            order.status = Order.STATUS_PAID
-            order.save(update_fields=['placed_at', 'status'])
+        if not method_id:
+            messages.error(request, "Pilih metode pembayaran terlebih dahulu.")
+            return render(request, 'pos/checkout.html', {'order': order, 'methods': methods})
 
-            # Buat payment
-            pm = get_object_or_404(PaymentMethod, pk=method_id)
-            Payment.objects.create(
-                order=order,
-                payment_method=pm,
-                amount_paid=order.grand_total,
-                ref_no=ref_no,
-                card_last4=card_last4
-            )
+        pm = get_object_or_404(PaymentMethod, pk=method_id)
 
-            # Mutasi stok OUT per item
-            for oi in order.items.select_related('menu_item'):
-                oi.menu_item.stock_qty -= oi.qty
-                oi.menu_item.save(update_fields=['stock_qty'])
-                StockMovement.objects.create(
-                    menu_item=oi.menu_item,
-                    user=request.user,
-                    move_type=StockMovement.MOVE_OUT,
-                    qty=oi.qty,
-                    note=f'Sale {order.order_no}'
+        try:
+            with transaction.atomic():
+                # Buat payment (validasi logic khusus per metode ada di model Payment)
+                payment = Payment(
+                    order=order,
+                    payment_method=pm,
+                    amount_paid=order.grand_total,
+                    ref_no=ref_no or None,
+                    card_last4=card_last4 or None
                 )
+                payment.full_clean()   # supaya bisa tangkap ValidationError lebih rapi
+                payment.save()
 
+                # Finalisasi order & mutasi stok
+                order.placed_at = timezone.now()
+                order.status = Order.STATUS_PAID
+                order.save(update_fields=['placed_at', 'status'])
+
+                for oi in order.items.select_related('menu_item'):
+                    oi.menu_item.stock_qty -= oi.qty
+                    oi.menu_item.save(update_fields=['stock_qty'])
+                    StockMovement.objects.create(
+                        menu_item=oi.menu_item,
+                        user=request.user,
+                        move_type=StockMovement.MOVE_OUT,
+                        qty=oi.qty,
+                        note=f'Sale {order.order_no}'
+                    )
+
+        except ValidationError as ve:
+            # Tampilkan error per field dari Payment model (mis. wajib ref_no/card_last4 untuk CARD)
+            for field, errs in ve.message_dict.items():
+                for msg in errs:
+                    messages.error(request, f"{field}: {msg}")
+            return render(request, 'pos/checkout.html', {'order': order, 'methods': methods})
+
+        messages.success(request, "Pembayaran berhasil.")
         return redirect('order_receipt', order_no=order_no)
 
     return render(request, 'pos/checkout.html', {'order': order, 'methods': methods})
@@ -140,12 +172,9 @@ def order_receipt(request, order_no):
     }
     return render(request, "orders/receipt.html", {"order": order, "shop": shop})
 
+
 # ================== Ambil model Menu tanpa circular import ==================
 def get_menu_model():
-    """
-    Ambil model menu dari app 'catalog' secara dinamis.
-    Kalau nama model kamu bukan 'Menu', tambahkan alternatifnya di list.
-    """
     for name in ["Menu", "MenuItem", "Product", "Item", "Food"]:
         try:
             return apps.get_model("catalog", name)
@@ -164,10 +193,9 @@ def _save_cart(request, cart):
     request.session["cart"] = cart
     request.session.modified = True
 
-# ================== Views Keranjang ==================
+# ================== Views Keranjang (untuk halaman publik, terpisah dari POS) ==================
 def cart_add(request, menu_id):
     MenuModel = get_menu_model()
-    # validasi item ada
     get_object_or_404(MenuModel, id=menu_id)
 
     cart = _get_cart(request)
@@ -175,7 +203,6 @@ def cart_add(request, menu_id):
     cart[key] = cart.get(key, 0) + 1
     _save_cart(request, cart)
 
-    # ganti 'public_menu' jika nama url menu publik kamu berbeda
     return redirect("public_menu")
 
 def cart_remove(request, menu_id):
