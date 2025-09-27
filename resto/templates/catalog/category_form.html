@@ -1,11 +1,12 @@
 {% extends 'base.html' %}
 {% block content %}
-<h4 class="mb-3">{{ title }}</h4>
+<h4>{{ title|default:"Kategori" }}</h4>
+
 <form method="post" class="card card-body">{% csrf_token %}
   {{ form.as_p }}
   <div class="d-flex gap-2">
-    <button class="btn btn-primary">Simpan</button>
-    <a class="btn btn-secondary" href="{% url 'category_list' %}">Batal</a>
+    <a class="btn btn-secondary" href="{% url 'catalog:category_list' %}">Batal</a>
+    <button class="btn btn-primary ms-auto">Simpan</button>
   </div>
 </form>
 {% endblock %}

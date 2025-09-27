@@ -2,7 +2,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h4>Kategori</h4>
-  <a class="btn btn-primary" href="{% url 'category_create' %}">+ Tambah</a>
+  <a class="btn btn-primary" href="{% url 'catalog:category_create' %}">+ Tambah</a>
 </div>
 
 <form class="row g-2 mb-3" method="get">
@@ -13,8 +13,6 @@
     <select class="form-select" name="sort">
       <option value="name" {% if sort == "name" %}selected{% endif %}>Sort: Nama ↑</option>
       <option value="-name" {% if sort == "-name" %}selected{% endif %}>Sort: Nama ↓</option>
-      <option value="code" {% if sort == "code" %}selected{% endif %}>Sort: Kode ↑</option>
-      <option value="-code" {% if sort == "-code" %}selected{% endif %}>Sort: Kode ↓</option>
     </select>
   </div>
   <div class="col-auto">
@@ -22,35 +20,21 @@
   </div>
 </form>
 
-<table class="table table-striped">
-  <thead><tr><th>Kode</th><th>Nama</th><th width="160">Aksi</th></tr></thead>
+<table class="table align-middle">
+  <thead><tr><th>Nama</th><th>Kode</th><th class="text-end">Aksi</th></tr></thead>
   <tbody>
     {% for c in categories %}
       <tr>
-        <td>{{ c.code }}</td>
         <td>{{ c.name }}</td>
-        <td>
-          <a class="btn btn-sm btn-warning" href="{% url 'category_update' c.id %}">Edit</a>
-          <a class="btn btn-sm btn-danger" href="{% url 'category_delete' c.id %}">Hapus</a>
+        <td><code>{{ c.code }}</code></td>
+        <td class="text-end">
+          <a class="btn btn-sm btn-outline-primary" href="{% url 'catalog:category_update' c.id %}">Edit</a>
+          <a class="btn btn-sm btn-outline-danger" href="{% url 'catalog:category_delete' c.id %}">Hapus</a>
         </td>
       </tr>
     {% empty %}
-      <tr><td colspan="3">Belum ada kategori.</td></tr>
+      <tr><td colspan="3" class="text-center text-muted">Belum ada data.</td></tr>
     {% endfor %}
   </tbody>
 </table>
-
-{% if categories.paginator.num_pages > 1 %}
-<nav>
-  <ul class="pagination">
-    {% if categories.has_previous %}
-      <li class="page-item"><a class="page-link" href="?q={{ q }}&sort={{ sort }}&page={{ categories.previous_page_number }}">Prev</a></li>
-    {% endif %}
-    <li class="page-item disabled"><span class="page-link">Page {{ categories.number }} / {{ categories.paginator.num_pages }}</span></li>
-    {% if categories.has_next %}
-      <li class="page-item"><a class="page-link" href="?q={{ q }}&sort={{ sort }}&page={{ categories.next_page_number }}">Next</a></li>
-    {% endif %}
-  </ul>
-</nav>
-{% endif %}
 {% endblock %}
