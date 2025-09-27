@@ -1,0 +1,58 @@
+[
+  {
+    "model": "catalog.category",
+    "pk": 1,
+    "fields": {
+      "name": "Masakan",
+      "code": "MAIN",
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalog.category",
+    "pk": 2,
+    "fields": {
+      "name": "Minuman",
+      "code": "DRINK",
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalog.menuitem",
+    "pk": 1,
+    "fields": {
+      "category": 1,
+      "name": "Nasi Goreng",
+      "description": "",
+      "price": "20000.00",
+      "stock_qty": 20,
+      "is_active": true,
+      "image": "",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "catalog.menuitem",
+    "pk": 2,
+    "fields": {
+      "category": 2,
+      "name": "Es Teh",
+      "description": "",
+      "price": "5000.00",
+      "stock_qty": 50,
+      "is_active": true,
+      "image": "",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "payments.paymentmethod",
+    "pk": 1,
+    "fields": {
+      "code": "CASH",
+      "name": "Tunai"
+    }
+  }
+]

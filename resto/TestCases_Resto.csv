@@ -1,0 +1,12 @@
+ID,Module,Title,Preconditions,Steps,Expected Result,Test Data
+CAT-001,Catalog,Tambah Category valid,Login sebagai admin/staff,"Buka /categories/add → isi name=Masakan, code=MAIN → Simpan","Kategori tersimpan, tampil di daftar, code unik","name=Masakan, code=MAIN"
+CAT-002,Catalog,Validasi code unik Category,Sudah ada MAIN,Tambah Category code=MAIN lagi,"Muncul error validasi unik, tidak tersimpan",code=MAIN (duplikat)
+MEN-001,Catalog,Tambah MenuItem valid,Ada Category MAIN,Buka /menu/add → isi nama & harga & stok → Simpan,MenuItem tersimpan & muncul di daftar,"Nasi Goreng, 20000, stok 20, MAIN"
+MEN-002,Catalog,Nonaktifkan MenuItem,MenuItem sudah ada,Edit item → centang nonaktif → Simpan,Item tidak muncul di menu publik,is_active=False
+PUB-001,Public,Lihat Menu publik & filter kategori,Ada item aktif di MAIN & DRINK,Buka /public/menu → filter cat=MAIN,"Hanya item MAIN yang tampil, pencarian berjalan","q='', cat=MAIN"
+CRT-001,Cart,Tambah item ke Keranjang,Ada item aktif & stok>0,Klik tombol Tambah pada item,Item muncul di Keranjang dengan qty=1,Nasi Goreng
+CRT-002,Cart,Update qty di Keranjang,Item sudah di keranjang,Ubah qty=3 → Update,Qty berubah & subtotal sesuai (3 * harga),qty=3
+CRT-003,Cart,Hapus item dari Keranjang,Item sudah di keranjang,Klik Hapus,"Item hilang dari keranjang, subtotal menyesuaikan",—
+CHK-001,Checkout,Checkout sukses (CASH),Keranjang berisi >=1 item; PaymentMethod=CASH ada,Klik Checkout → pilih CASH → Submit,"Order tercipta (status awal), redirect ke halaman pembayaran/konfirmasi",payment=CASH
+AUTH-001,Auth,Non-staff ke halaman staff,Login user biasa,Akses /categories/,403/redirect login (tidak boleh akses),—
+URL-001,Routing,Semua URL tag di template valid,Server berjalan,Render halaman publik & staff,Tidak ada NoReverseMatch di seluruh template,—
