@@ -4,13 +4,24 @@
 
 {% if rows %}
 <table class="table align-middle">
-  <thead><tr><th>Item</th><th style="width:120px">Qty</th><th class="text-end">Subtotal</th><th></th></tr></thead>
+  <thead>
+    <tr>
+      <th>Item</th>
+      <th style="width:120px">Qty</th>
+      <th class="text-end">Subtotal</th>
+      <th></th>
+    </tr>
+  </thead>
   <tbody>
     {% for r in rows %}
       <tr>
-        <td>{{ r.item.name }} <small class="text-muted">({{ r.item.category.name }})</small></td>
         <td>
-          <form method="post" action="{% url 'cart_update' r.item.id %}" class="d-flex gap-2">{% csrf_token %}
+          {{ r.item.name }} <small class="text-muted">({{ r.item.category.name }})</small>
+          <div><small>Harga: Rp {{ r.item.price }}</small></div>
+        </td>
+        <td>
+          <form method="post" action="{% url 'catalog:cart_update' r.item.id %}" class="d-flex gap-2">
+            {% csrf_token %}
             <input type="number" name="qty" min="1" max="{{ r.item.stock_qty }}" value="{{ r.qty }}"
                    class="form-control form-control-sm" style="width:80px">
             <button class="btn btn-sm btn-outline-secondary">Ubah</button>
@@ -18,8 +29,9 @@
         </td>
         <td class="text-end">Rp {{ r.line }}</td>
         <td class="text-end">
-          <form method="post" action="{% url 'cart_remove' r.item.id %}">{% csrf_token %}
-            <button class="btn btn-sm btn-danger">Hapus</button>
+          <form method="post" action="{% url 'catalog:cart_remove' r.item.id %}">
+            {% csrf_token %}
+            <button class="btn btn-sm btn-outline-danger">Hapus</button>
           </form>
         </td>
       </tr>
@@ -33,12 +45,12 @@
     <p class="mb-1">PPN (10%): <strong>Rp {{ tax }}</strong></p>
     <p class="mb-3">Grand Total: <strong>Rp {{ grand }}</strong></p>
 
-    <a class="btn btn-outline-secondary" href="{% url 'public_menu' %}">Tambah Menu Lagi</a>
-    <a class="btn btn-success float-end" href="{% url 'cart_checkout' %}">Checkout</a>
+    <a class="btn btn-outline-secondary" href="{% url 'catalog:public_menu' %}">Tambah Menu Lagi</a>
+    <a class="btn btn-success float-end" href="{% url 'catalog:cart_checkout' %}">Checkout</a>
   </div>
 </div>
 {% else %}
 <div class="alert alert-info">Keranjang kosong.</div>
-<a class="btn btn-primary" href="{% url 'public_menu' %}">Lihat Menu</a>
+<a class="btn btn-primary" href="{% url 'catalog:public_menu' %}">Lihat Menu</a>
 {% endif %}
 {% endblock %}

@@ -203,7 +203,7 @@ def cart_add(request, menu_id):
     cart[key] = cart.get(key, 0) + 1
     _save_cart(request, cart)
 
-    return redirect("public_menu")
+    return redirect("catalog:public_menu")
 
 def cart_remove(request, menu_id):
     cart = _get_cart(request)

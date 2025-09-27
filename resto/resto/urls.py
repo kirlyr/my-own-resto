@@ -10,21 +10,22 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('login/', auth_views.LoginView.as_view(template_name='auth/login.html'), name='login'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
+
     path('', dashboard, name='dashboard'),
 
-    # mount catalog CRUD
-    path('', include('catalog.urls')),
+    # === KATALOG + PUBLIC (pakai namespace 'catalog') ===
+    path('', include(('catalog.urls', 'catalog'), namespace='catalog')),
 
-    # POS
+    # POS (kasir)
     path('pos/create/', pos_create_order, name='pos_create_order'),
     path('pos/<str:order_no>/add-item/', pos_add_item, name='pos_add_item'),
     path('pos/<str:order_no>/checkout/', pos_checkout, name='pos_checkout'),
 
-    # Reports
+    # Laporan
     path('reports/monthly/', sales_monthly, name='sales_monthly'),
     path('reports/top-weekly/', top_items_weekly, name='top_items_weekly'),
 
-    # Orders app
+    # Orders (route lain milik kasir)
     path('', include('orders.urls')),
 ]
 

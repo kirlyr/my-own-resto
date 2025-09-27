@@ -9,19 +9,18 @@
 <body>
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-3">
     <div class="container-fluid">
-      <a class="navbar-brand" href="/">DBB POS</a>
+      <a class="navbar-brand" href="/">Dapur Bunda Bahagia</a>
 
-      <!-- (opsional) tombol toggler untuk mobile -->
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
 
       <div class="collapse navbar-collapse" id="mainNavbar">
         <ul class="navbar-nav me-auto">
-          <li class="nav-item"><a class="nav-link" href="/pos/create/">POS</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'public_menu' %}">Menu Pelanggan</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'category_list' %}">Kategori</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'menu_list' %}">Menu</a></li>
+          <li class="nav-item"><a class="nav-link" href="/pos/create/">Online Order</a></li>
+          <li class="nav-item"><a class="nav-link" href="{% url 'catalog:public_menu' %}">Menu Pelanggan</a></li>
+          <li class="nav-item"><a class="nav-link" href="{% url 'catalog:category_list' %}">Kategori</a></li>
+          <li class="nav-item"><a class="nav-link" href="{% url 'catalog:menu_list' %}">Menu</a></li>
         </ul>
         {% if user.is_authenticated %}
           <span class="navbar-text me-3">Hi, {{ user.username }}</span>
