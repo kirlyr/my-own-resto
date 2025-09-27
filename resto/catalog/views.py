@@ -7,10 +7,8 @@ from .models import Category, MenuItem, StockMovement
 from .forms import CategoryForm, MenuItemForm
 from django.db.models import Q
 from django.urls import reverse
-from django.shortcuts import redirect
 from decimal import Decimal
 from orders.models import Order, OrderItem, Customer
-from payments.models import PaymentMethod
 
 staff_required = user_passes_test(lambda u: u.is_staff)
 
@@ -24,9 +22,11 @@ def category_list(request):
     sort = request.GET.get("sort", "name")      # name | code | -name | -code
     qs = Category.objects.all()
     if q:
-        qs = qs.filter(name__icontains=q) | qs.filter(code__icontains=q)
+        # gabungkan filter nama/kode
+        qs = (Category.objects.filter(name__icontains=q) |
+              Category.objects.filter(code__icontains=q))
 
-    allowed = {"name","code","-name","-code"}
+    allowed = {"name", "code", "-name", "-code"}
     if sort not in allowed:
         sort = "name"
     qs = qs.order_by(sort)
@@ -34,7 +34,9 @@ def category_list(request):
     paginator = Paginator(qs, 10)
     page = request.GET.get("page")
     categories = paginator.get_page(page)
-    return render(request, "catalog/category_list.html", {"categories": categories, "q": q, "sort": sort})
+    return render(request, "catalog/category_list.html", {
+        "categories": categories, "q": q, "sort": sort
+    })
 
 @login_required
 @staff_required
@@ -43,8 +45,9 @@ def category_create(request):
     if request.method == "POST" and form.is_valid():
         form.save()
         messages.success(request, "Kategori berhasil ditambahkan.")
-        return redirect("category_list")
-    return render(request, "catalog/category_form.html", {"form": form, "title": "Tambah Kategori"})
+        return redirect("catalog:category_list")
+    return render(request, "catalog/category_form.html",
+                  {"form": form, "title": "Tambah Kategori"})
 
 @login_required
 @staff_required
@@ -54,8 +57,9 @@ def category_update(request, pk):
     if request.method == "POST" and form.is_valid():
         form.save()
         messages.success(request, "Kategori berhasil diperbarui.")
-        return redirect("category_list")
-    return render(request, "catalog/category_form.html", {"form": form, "title": "Edit Kategori"})
+        return redirect("catalog:category_list")
+    return render(request, "catalog/category_form.html",
+                  {"form": form, "title": "Edit Kategori"})
 
 @login_required
 @staff_required
@@ -64,8 +68,10 @@ def category_delete(request, pk):
     if request.method == "POST":
         obj.delete()
         messages.success(request, "Kategori dihapus.")
-        return redirect("category_list")
-    return render(request, "catalog/confirm_delete.html", {"object": obj, "back_url": "category_list"})
+        return redirect("catalog:category_list")
+    # pastikan back_url sudah namespaced
+    return render(request, "catalog/confirm_delete.html",
+                  {"object": obj, "back_url": "catalog:category_list"})
 
 # ---------- MENU ----------
 @login_required
@@ -75,9 +81,10 @@ def menu_list(request):
     sort = request.GET.get("sort", "name")  # name | price | stock_qty | -price | -stock_qty
     qs = MenuItem.objects.select_related("category")
     if q:
-        qs = qs.filter(name__icontains=q) | qs.filter(category__name__icontains=q)
+        qs = (MenuItem.objects.filter(name__icontains=q) |
+              MenuItem.objects.filter(category__name__icontains=q))
 
-    allowed = {"name","price","stock_qty","-name","-price","-stock_qty"}
+    allowed = {"name", "price", "stock_qty", "-name", "-price", "-stock_qty"}
     if sort not in allowed:
         sort = "name"
     qs = qs.order_by(sort, "id")
@@ -94,8 +101,9 @@ def menu_create(request):
     if request.method == "POST" and form.is_valid():
         form.save()
         messages.success(request, "Menu berhasil ditambahkan.")
-        return redirect("menu_list")
-    return render(request, "catalog/menu_form.html", {"form": form, "title": "Tambah Menu"})
+        return redirect("catalog:menu_list")
+    return render(request, "catalog/menu_form.html",
+                  {"form": form, "title": "Tambah Menu"})
 
 @login_required
 @staff_required
@@ -105,8 +113,9 @@ def menu_update(request, pk):
     if request.method == "POST" and form.is_valid():
         form.save()
         messages.success(request, "Menu diperbarui.")
-        return redirect("menu_list")
-    return render(request, "catalog/menu_form.html", {"form": form, "title": "Edit Menu"})
+        return redirect("catalog:menu_list")
+    return render(request, "catalog/menu_form.html",
+                  {"form": form, "title": "Edit Menu"})
 
 @login_required
 @staff_required
@@ -115,8 +124,9 @@ def menu_delete(request, pk):
     if request.method == "POST":
         obj.delete()
         messages.success(request, "Menu dihapus.")
-        return redirect("menu_list")
-    return render(request, "catalog/confirm_delete.html", {"object": obj, "back_url": "menu_list"})
+        return redirect("catalog:menu_list")
+    return render(request, "catalog/confirm_delete.html",
+                  {"object": obj, "back_url": "catalog:menu_list"})
 
 @login_required
 @staff_required
@@ -129,7 +139,7 @@ def menu_restock(request, pk):
             qty = 0
         if qty <= 0:
             messages.error(request, "Qty restock harus lebih dari 0.")
-            return redirect("menu_list")
+            return redirect("catalog:menu_list")
 
         with transaction.atomic():
             item.stock_qty += qty
@@ -142,10 +152,11 @@ def menu_restock(request, pk):
                 note="Restock via UI"
             )
         messages.success(request, f"Restock {item.name} +{qty} berhasil.")
-        return redirect("menu_list")
+        return redirect("catalog:menu_list")
 
     return render(request, "catalog/restock_form.html", {"item": item})
 
+# ---------- PUBLIC ----------
 def public_menu(request):
     """
     Halaman publik untuk customer melihat menu yang tersedia.
@@ -179,8 +190,6 @@ def public_menu(request):
     })
 
 # ========= CART (Session) =========
-CART_KEY = 'cart'  # nama key di session
-
 def _get_cart(session):
     return session.get(CART_KEY, {})
 
@@ -206,11 +215,12 @@ def cart_add(request, pk):
     _save_cart(request.session, cart)
     messages.success(request, f"Tambahkan {item.name} × {qty} ke keranjang.")
 
-    # Kembali ke halaman sebelumnya, fallback ke public_menu
-    return redirect(request.META.get('HTTP_REFERER') or reverse('public_menu'))
+    # Kembali ke halaman sebelumnya, fallback ke public_menu (namespaced!)
+    return redirect(request.META.get('HTTP_REFERER') or reverse('catalog:public_menu'))
 
 def cart_view(request):
     """Tampilkan isi keranjang + subtotal, pajak, grand total."""
+    from decimal import Decimal  # pastikan Decimal tersedia di fungsi ini juga
     cart = _get_cart(request.session)
     if not cart:
         return render(request, 'public/cart.html', {
@@ -254,7 +264,7 @@ def cart_update(request, pk):
         cart[str(pk)] = qty
         _save_cart(request.session, cart)
         messages.success(request, "Qty diperbarui.")
-    return redirect('cart_view')
+    return redirect('catalog:cart_view')
 
 def cart_remove(request, pk):
     """Hapus item dari keranjang."""
@@ -263,10 +273,7 @@ def cart_remove(request, pk):
         del cart[str(pk)]
         _save_cart(request.session, cart)
         messages.success(request, "Item dihapus dari keranjang.")
-    return redirect('cart_view')
-
-from django.contrib.auth.decorators import login_required
-import uuid
+    return redirect('catalog:cart_view')
 
 @login_required
 def cart_checkout(request):
@@ -277,13 +284,14 @@ def cart_checkout(request):
     cart = _get_cart(request.session)
     if not cart:
         messages.error(request, "Keranjang kosong.")
-        return redirect('public_menu')
+        return redirect('catalog:public_menu')
 
     if request.method == 'POST':
         name = (request.POST.get('name') or '').strip() or 'Guest'
         phone = (request.POST.get('phone') or '').strip()
         customer, _ = Customer.objects.get_or_create(name=name, phone=phone)
 
+        import uuid
         order_no = uuid.uuid4().hex[:10].upper()
         o = Order.objects.create(user=request.user, customer=customer, order_no=order_no)
 
